@@ -25,8 +25,9 @@ public class FilmService {
     }
 
     public Film update(Film film) {
-        if (!films.containsKey(film.getId()))
+        if (!films.containsKey(film.getId())) {
             throw new ValidationException("Film with id " + film.getId() + " not exists");
+        }
         putFilm(film);
         log.debug("Updated film {}", film);
         return film;
@@ -39,8 +40,9 @@ public class FilmService {
 
     private void setNewFilmId(Film film) {
         int id = 0;
-        if (!films.isEmpty())
+        if (!films.isEmpty()) {
             id = Collections.max(films.keySet());
+        }
         log.debug("Set film id {}", id);
         film.setId(id + 1);
     }
@@ -48,14 +50,18 @@ public class FilmService {
     private void checkCorrect(Film film) {
         StringBuilder sb = new StringBuilder();
 
-        if (film.getName().isBlank())
+        if (film.getName().isBlank()) {
             sb.append("Name shouldn't be blank.");
-        if (film.getDescription().length() > 200)
+        }
+        if (film.getDescription().length() > 200) {
             sb.append("Description should be less than 200 symbols.");
-        if (film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28)))
+        }
+        if (film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
             sb.append("Release date should be from 28 december 1895.");
-        if (film.getDuration() <= 0)
+        }
+        if (film.getDuration() <= 0) {
             sb.append("Duration should be positive value.");
+        }
 
         if (sb.length() > 0) {
             log.debug(sb.toString());

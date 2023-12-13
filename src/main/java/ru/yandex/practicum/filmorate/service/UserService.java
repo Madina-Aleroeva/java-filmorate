@@ -25,8 +25,9 @@ public class UserService {
     }
 
     public User update(User user) {
-        if (!users.containsKey(user.getId()))
+        if (!users.containsKey(user.getId())) {
             throw new ValidationException("User with id " + user.getId() + " not exists");
+        }
         putUser(user);
         log.debug("Updated user {}", user);
         return user;
@@ -41,12 +42,15 @@ public class UserService {
     private void checkCorrect(User user) {
         StringBuilder sb = new StringBuilder();
 
-        if (user.getEmail().isBlank() || !user.getEmail().contains("@"))
+        if (user.getEmail().isBlank() || !user.getEmail().contains("@")) {
             sb.append("Email shouldn't be blank and should contain '@'.");
-        if (user.getLogin().isBlank() || user.getLogin().contains(" "))
+        }
+        if (user.getLogin().isBlank() || user.getLogin().contains(" ")) {
             sb.append("Login shouldn't be blank and shouldn't contain spaces.");
-        if (user.getBirthday().isAfter(LocalDate.now()))
+        }
+        if (user.getBirthday().isAfter(LocalDate.now())) {
             sb.append("Birthdate shouldn't be in the future.");
+        }
 
         if (sb.length() > 0) {
             log.debug(sb.toString());
@@ -56,8 +60,9 @@ public class UserService {
 
     private void setNewUserId(User user) {
         int id = 0;
-        if (!users.isEmpty())
+        if (!users.isEmpty()) {
             id = Collections.max(users.keySet());
+        }
         log.debug("Set user id {}", id);
         user.setId(id + 1);
     }
