@@ -21,8 +21,9 @@ public class InMemoryFilmStorage implements FilmStorage {
 
     @Override
     public Film findFilmById(int id) {
-        if (!films.containsKey(id))
+        if (!films.containsKey(id)) {
             throw new NotFoundException("Film with id = " + id + " not found");
+        }
         return films.get(id);
     }
 
@@ -42,8 +43,9 @@ public class InMemoryFilmStorage implements FilmStorage {
             throw new NotFoundException("Film with id " + film.getId() + " not exists");
         }
         checkCorrect(film);
-        if (film.getLikes() == null)
+        if (film.getLikes() == null) {
             film.setLikes(new HashSet<>());
+        }
         films.put(film.getId(), film);
         log.debug("Updated film {}", film);
         return film;

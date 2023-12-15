@@ -28,7 +28,7 @@ public class InMemoryUserStorage implements UserStorage {
     @Override
     public User create(User user) {
         setNewUserId(user);
-        user.setFriends(new HashSet<>());
+        user.setFriendIds(new HashSet<>());
         putUser(user);
         log.debug("Created user {}", user);
         return user;
@@ -39,8 +39,9 @@ public class InMemoryUserStorage implements UserStorage {
         if (!users.containsKey(user.getId())) {
             throw new NotFoundException("User with id " + user.getId() + " not exists");
         }
-        if (user.getFriends() == null)
-            user.setFriends(new HashSet<>());
+        if (user.getFriendIds() == null) {
+            user.setFriendIds(new HashSet<>());
+        }
         putUser(user);
         log.debug("Updated user {}", user);
         return user;
@@ -76,8 +77,8 @@ public class InMemoryUserStorage implements UserStorage {
         if (!users.isEmpty()) {
             id = Collections.max(users.keySet());
         }
-        log.debug("Set user id {}", id);
-        user.setId(id + 1);
+        log.debug("Set user id {}", id + 1);
+        user.setId(++id);
     }
 
     private void setNameIfNullOrBlank(User user) {

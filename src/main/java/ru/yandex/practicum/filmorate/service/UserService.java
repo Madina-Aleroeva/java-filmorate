@@ -34,27 +34,27 @@ public class UserService {
     public void addFriend(int userId, int friendId) {
         User user = userStorage.findUserById(userId);
         User friend = userStorage.findUserById(friendId);
-        user.getFriends().add(friendId);
-        friend.getFriends().add(userId);
+        user.getFriendIds().add(friendId);
+        friend.getFriendIds().add(userId);
         log.debug("Added friends: {} and {}", userId, friendId);
     }
 
     public void deleteFriend(int userId, int friendId) {
         User user = userStorage.findUserById(userId);
         User friend = userStorage.findUserById(friendId);
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
+        user.getFriendIds().remove(friendId);
+        friend.getFriendIds().remove(userId);
         log.debug("Deleted friends: {} and {}", userId, friendId);
     }
 
     public List<User> getFriends(int id) {
-        return userStorage.findUserById(id).getFriends().stream()
+        return userStorage.findUserById(id).getFriendIds().stream()
                 .map(userStorage::findUserById).collect(Collectors.toList());
     }
 
     public List<User> getCommonFriends(int userId, int friendId) {
         List<User> users = userStorage.findAll();
         return users.stream().filter(x ->
-                !x.getFriends().isEmpty() && x.getFriends().contains(userId) && x.getFriends().contains(friendId)).collect(Collectors.toList());
+                !x.getFriendIds().isEmpty() && x.getFriendIds().contains(userId) && x.getFriendIds().contains(friendId)).collect(Collectors.toList());
     }
 }
