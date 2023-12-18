@@ -1,78 +1,60 @@
 package ru.yandex.practicum.filmorate.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.time.LocalDate;
-import java.util.*;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class UserService {
-    private final Map<Integer, User> users = new HashMap<>();
+    private final UserStorage userStorage;
 
     public List<User> findAll() {
-        return new ArrayList<>(users.values());
+        return userStorage.findAll();
+    }
+
+    public User findById(int id) {
+        return userStorage.findUserById(id);
     }
 
     public User create(User user) {
-        setNewUserId(user);
-        putUser(user);
-        log.debug("Created user {}", user);
-        return user;
+        return userStorage.create(user);
     }
 
     public User update(User user) {
-        if (!users.containsKey(user.getId())) {
-            throw new ValidationException("User with id " + user.getId() + " not exists");
-        }
-        putUser(user);
-        log.debug("Updated user {}", user);
-        return user;
+        return userStorage.update(user);
     }
 
-    private void putUser(User user) {
-        checkCorrect(user);
-        setNameIfNullOrBlank(user);
-        users.put(user.getId(), user);
+    public void addFriend(int userId, int friendId) {
+        User user = userStorage.findUserById(userId);
+        User friend = userStorage.findUserById(friendId);
+        user.getFriendIds().add(friendId);
+        friend.getFriendIds().add(userId);
+        log.debug("Added friends: {} and {}", userId, friendId);
     }
 
-    private void checkCorrect(User user) {
-        StringBuilder sb = new StringBuilder();
-
-        if (user.getEmail().isBlank() || !user.getEmail().contains("@")) {
-            sb.append("Email shouldn't be blank and should contain '@'.");
-        }
-        if (user.getLogin().isBlank() || user.getLogin().contains(" ")) {
-            sb.append("Login shouldn't be blank and shouldn't contain spaces.");
-        }
-        if (user.getBirthday().isAfter(LocalDate.now())) {
-            sb.append("Birthdate shouldn't be in the future.");
-        }
-
-        if (sb.length() > 0) {
-            log.debug(sb.toString());
-            throw new ValidationException(sb.toString());
-        }
+    public void deleteFriend(int userId, int friendId) {
+        User user = userStorage.findUserById(userId);
+        User friend = userStorage.findUserById(friendId);
+        user.getFriendIds().remove(friendId);
+        friend.getFriendIds().remove(userId);
+        log.debug("Deleted friends: {} and {}", userId, friendId);
     }
 
-    private void setNewUserId(User user) {
-        int id = 0;
-        if (!users.isEmpty()) {
-            id = Collections.max(users.keySet());
-        }
-        log.debug("Set user id {}", id);
-        user.setId(id + 1);
+    public List<User> getFriends(int id) {
+        return userStorage.findUserById(id).getFriendIds().stream()
+                .map(userStorage::findUserById).collect(Collectors.toList());
     }
 
-    private void setNameIfNullOrBlank(User user) {
-        if (user.getName() == null || user.getName().isBlank()) {
-            log.debug("Set user name of login {}", user.getLogin());
-            user.setName(user.getLogin());
-        }
+    public List<User> getCommonFriends(int userId, int friendId) {
+        List<User> users = userStorage.findAll();
+        return users.stream().filter(x ->
+                !x.getFriendIds().isEmpty() && x.getFriendIds().contains(userId) && x.getFriendIds().contains(friendId)).collect(Collectors.toList());
     }
-
-
 }
