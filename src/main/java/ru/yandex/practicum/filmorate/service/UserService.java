@@ -1,19 +1,24 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class UserService {
+    @Qualifier("userDbStorage")
     private final UserStorage userStorage;
+
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage) {
+        this.userStorage = userStorage;
+    }
 
     public List<User> findAll() {
         return userStorage.findAll();
@@ -33,17 +38,17 @@ public class UserService {
 
     public void addFriend(int userId, int friendId) {
         User user = userStorage.findUserById(userId);
-        User friend = userStorage.findUserById(friendId);
+        userStorage.findUserById(friendId); // check friend exists
         user.getFriendIds().add(friendId);
-        friend.getFriendIds().add(userId);
+        userStorage.update(user);
         log.debug("Added friends: {} and {}", userId, friendId);
     }
 
     public void deleteFriend(int userId, int friendId) {
         User user = userStorage.findUserById(userId);
-        User friend = userStorage.findUserById(friendId);
+        userStorage.findUserById(friendId); // check friend exists
         user.getFriendIds().remove(friendId);
-        friend.getFriendIds().remove(userId);
+        userStorage.update(user);
         log.debug("Deleted friends: {} and {}", userId, friendId);
     }
 
@@ -52,9 +57,14 @@ public class UserService {
                 .map(userStorage::findUserById).collect(Collectors.toList());
     }
 
-    public List<User> getCommonFriends(int userId, int friendId) {
-        List<User> users = userStorage.findAll();
-        return users.stream().filter(x ->
-                !x.getFriendIds().isEmpty() && x.getFriendIds().contains(userId) && x.getFriendIds().contains(friendId)).collect(Collectors.toList());
+    public List<User> getCommonFriends(int userId, int otherId) {
+        Set<Integer> userFriendIds = userStorage.findUserById(userId).getFriendIds();
+        Set<Integer> otherFriendIds = userStorage.findUserById(otherId).getFriendIds();
+
+        Set<Integer> commonFriendIds = userFriendIds.stream().filter(otherFriendIds::contains).collect(Collectors.toSet());
+
+        List<User> users = commonFriendIds.stream().map(userStorage::findUserById).collect(Collectors.toList());
+        log.debug("Common friends {} and {} - {}", userId, otherId, users.toString());
+        return users;
     }
 }
