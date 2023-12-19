@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.storage.film;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -25,10 +26,7 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> findAll() {
-        // В данном случае разделяем запросы, 1) соединяем фильм и рейтинг 1 к 1,
-        // 2) соединяем фильм и жанры (т.к. их несколько), 3) точно также соединяем фильмы и лайки
-        // В случае соединения всех 4-х таблиц сразу - получим слишком большую таблицу
-        String sql = "select * from film inner join rating on film.rating_id = rating.id ";
+        String sql = "select * from film join rating on film.rating_id = rating.id ";
         Map<Integer, Film> films = jdbcTemplate.query(sql, this::mapRowToFilm)
                 .stream().collect(Collectors.toMap(Film::getId, Function.identity()));
 
@@ -53,40 +51,45 @@ public class FilmDbStorage implements FilmStorage {
 
     private void setGenresAndLikesToFilms(Map<Integer, Film> films, String cond) {
         String sql = "select * from film " +
-                "inner join film_genre on film_genre.film_id = film.id " +
-                "inner join genre on genre.id = film_genre.genre_id " + cond;
-        jdbcTemplate.query(sql, (rs, rowNum) -> setGenreToFilm(rs, films));
+                "join film_genre on film_genre.film_id = film.id " +
+                "join genre on genre.id = film_genre.genre_id " + cond;
+        jdbcTemplate.query(sql, rs -> {
+            setGenreToFilm(rs, films);
+        });
 
         sql = "select * from film " +
-                "inner join film_like on film_like.film_id = film.id ";
-        jdbcTemplate.query(sql, (rs, rowNum) -> setLikeToFilm(rs, films));
-
+                "join film_like on film_like.film_id = film.id ";
+        jdbcTemplate.query(sql, rs -> {
+            setLikeToFilm(rs, films);
+        });
     }
 
-    private Object setGenreToFilm(ResultSet rs, Map<Integer, Film> films) throws SQLException {
-        log.debug("setGenreToFilm begin");
+    private void setGenreToFilm(ResultSet rs, Map<Integer, Film> films) throws SQLException {
         int genreId = rs.getInt("genre.id");
         String name = rs.getString("genre.name");
         int filmId = rs.getInt("film.id");
         films.get(filmId).getGenres().add(new Genre(genreId, name));
-
-        return null;
     }
 
-    private Object setLikeToFilm(ResultSet rs, Map<Integer, Film> films) throws SQLException {
+    private void setLikeToFilm(ResultSet rs, Map<Integer, Film> films) throws SQLException {
         int filmId = rs.getInt("film.id");
         int userId = rs.getInt("film_like.user_id");
         films.get(filmId).getLikes().add(userId);
-
-        return null;
     }
 
     @Override
     public Film findFilmById(int filmId) {
-        String sql = "select * from film inner join rating " +
-                "on film.rating_id = rating.id where film.id = ?";
+        String sql = "select * from film " +
+                "join rating on film.rating_id = rating.id where film.id = ?";
+
         Map<Integer, Film> films = jdbcTemplate.query(sql, this::mapRowToFilm, filmId)
                 .stream().collect(Collectors.toMap(Film::getId, Function.identity()));
+        try {
+            jdbcTemplate.queryForObject(sql, this::mapRowToFilm, filmId);
+        } catch (EmptyResultDataAccessException e) {
+            throw new NotFoundException("Film with id = " + filmId + " not found");
+        }
+
 
         if (films.isEmpty()) {
             throw new NotFoundException("Film with id = " + filmId + " not found");
@@ -104,6 +107,7 @@ public class FilmDbStorage implements FilmStorage {
 
         String sql = "insert into film(name, description, release_date, " +
                 "duration, rating_id) values (?, ?, ?, ?, ?)";
+
         jdbcTemplate.update(sql,
                 film.getName(),
                 film.getDescription(),
@@ -116,7 +120,6 @@ public class FilmDbStorage implements FilmStorage {
         film.setId(id);
 
         if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            log.debug("in film with id = {} are genres {}", id, film.getGenres());
             for (Genre genre : film.getGenres()) {
                 sql = "insert into film_genre (film_id, genre_id) values (?, ?)";
                 jdbcTemplate.update(sql, id, genre.getId());
@@ -146,8 +149,9 @@ public class FilmDbStorage implements FilmStorage {
                 film.getId());
 
         // удаляем лайки из БД
-        sql = "select * from film inner join film_like on film.id = film_like.film_id where film.id = ?";
-        jdbcTemplate.query(sql, (rs, rowNum) -> checkDeleteLikes(rs, film), film.getId());
+        sql = "delete from film_like where film_id = ?";
+        jdbcTemplate.update(sql,
+                film.getId());
 
         // добавляем лайки в БД
         if (film.getLikes() != null) {
@@ -158,6 +162,7 @@ public class FilmDbStorage implements FilmStorage {
             }
         }
 
+        // удаляем жанры из БД
         sql = "delete from film_genre where film_id = ?";
         jdbcTemplate.update(sql,
                 film.getId());
@@ -171,36 +176,11 @@ public class FilmDbStorage implements FilmStorage {
             }
         }
 
-        log.debug("Updated film {}", film);
         if (film.getGenres() != null) {
             film.setGenres(film.getGenres().stream().sorted()
                     .collect(Collectors.toCollection(LinkedHashSet::new)));
         }
         return film;
-    }
-
-    private Object checkDeleteLikes(ResultSet rs, Film film) throws SQLException {
-        int userId = rs.getInt("film_like.user_id");
-        if (!film.getLikes().contains(userId)) {
-            String sql = "delete from film_like where film_id = ? and user_id = ?";
-            jdbcTemplate.update(sql,
-                    film.getId(),
-                    userId);
-        }
-
-        return null;
-    }
-
-    private Object checkDeleteGenres(ResultSet rs, Film film) throws SQLException {
-        int genreId = rs.getInt("film_genre.genre_id");
-        if (film.getGenres().stream().map(genre -> genre.getId() == genreId).findAny().isEmpty()) {
-            String sql = "delete from film_genre where film_id = ?";
-            jdbcTemplate.update(sql,
-                    film.getId(),
-                    genreId);
-        }
-
-        return null;
     }
 
     public List<Genre> findAllGenres() {
@@ -210,17 +190,16 @@ public class FilmDbStorage implements FilmStorage {
 
     public Genre findGenreById(int id) {
         String sql = "select * from genre where id = ?";
-        List<Genre> genres = jdbcTemplate.query(sql, this::mapRowToGenre, id);
-        if (genres.isEmpty()) {
+        try {
+            return jdbcTemplate.queryForObject(sql, this::mapRowToGenre, id);
+        } catch (EmptyResultDataAccessException e) {
             throw new NotFoundException("Genre with id = " + id + " not found");
         }
-        return genres.get(0);
     }
 
     private Genre mapRowToGenre(ResultSet rs, int rowNum) throws SQLException {
         return new Genre(rs.getInt("id"), rs.getString("name"));
     }
-
 
     public List<Rating> findAllRatings() {
         String sql = "select * from rating";
@@ -229,11 +208,11 @@ public class FilmDbStorage implements FilmStorage {
 
     public Rating findRatingById(int id) {
         String sql = "select * from rating where id = ?";
-        List<Rating> ratings = jdbcTemplate.query(sql, this::mapRowToRating, id);
-        if (ratings.isEmpty()) {
+        try {
+            return jdbcTemplate.queryForObject(sql, this::mapRowToRating, id);
+        } catch (EmptyResultDataAccessException e) {
             throw new NotFoundException("Rating with id = " + id + " not found");
         }
-        return ratings.get(0);
     }
 
     private Rating mapRowToRating(ResultSet rs, int rowNum) throws SQLException {

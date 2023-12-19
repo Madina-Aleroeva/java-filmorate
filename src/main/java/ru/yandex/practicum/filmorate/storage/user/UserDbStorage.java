@@ -23,10 +23,10 @@ public class UserDbStorage implements UserStorage {
     public List<User> findAll() {
         Map<Integer, User> users = new HashMap<>();
 
-        // Можно сделать 2 запроса: в первом берем всех пользователей (только создаем их), во втором соединяем
-        // пользователей и друзей, или же делаем всё одним запросом, как и сделано. Как лучше?
         String sql = "select * from users left join friend on users.id = friend.req_from";
-        jdbcTemplate.query(sql, (rs, rowNum) -> mapRowToUser(rs, users));
+        jdbcTemplate.query(sql, rs -> {
+            mapRowToUser(rs, users);
+        });
 
         return new ArrayList<>(users.values());
     }
@@ -42,7 +42,7 @@ public class UserDbStorage implements UserStorage {
                 .build();
     }
 
-    private Object mapRowToUser(ResultSet rs, Map<Integer, User> users) throws SQLException {
+    private void mapRowToUser(ResultSet rs, Map<Integer, User> users) throws SQLException {
         int userId = rs.getInt("users.id");
 
         if (!users.containsKey(userId)) {
@@ -55,15 +55,15 @@ public class UserDbStorage implements UserStorage {
         if (friendId != 0) {
             user.getFriendIds().add(friendId);
         }
-
-        return null;
     }
 
     public User findUserById(int userId) {
         Map<Integer, User> users = new HashMap<>();
 
         String sql = "select * from users left join friend on users.id = req_from where users.id = ?";
-        jdbcTemplate.query(sql, (rs, rowNum) -> mapRowToUser(rs, users), userId);
+        jdbcTemplate.query(sql, rs -> {
+            mapRowToUser(rs, users);
+        }, userId);
 
         if (users.isEmpty()) {
             throw new NotFoundException("User with id = " + userId + " not found");
@@ -113,8 +113,9 @@ public class UserDbStorage implements UserStorage {
                 user.getId());
 
         // удаляем друзей из БД
-        sql = "select * from users inner join friend on users.id = req_from where users.id = ?";
-        jdbcTemplate.query(sql, (rs, rowNum) -> checkDeleteFriends(rs, user), user.getId());
+        sql = "delete from friend where req_from = ?";
+        jdbcTemplate.update(sql,
+                user.getId());
 
         // добавляем друзей в БД
         if (user.getFriendIds() != null) {
@@ -129,18 +130,6 @@ public class UserDbStorage implements UserStorage {
 
         log.debug("Updated user {}", user);
         return user;
-    }
-
-    private Object checkDeleteFriends(ResultSet rs, User user) throws SQLException {
-        int friendId = rs.getInt("req_to");
-        if (!user.getFriendIds().contains(friendId)) {
-            String sql = "delete from friend where req_from = ? and req_to = ?";
-            jdbcTemplate.update(sql,
-                    user.getId(),
-                    friendId);
-        }
-
-        return null;
     }
 
 

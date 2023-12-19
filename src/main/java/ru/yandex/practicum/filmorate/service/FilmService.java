@@ -29,13 +29,10 @@ public class FilmService {
     }
 
     public Film findFilmById(int id) {
-        Film film = filmStorage.findFilmById(id);
-        log.debug("findFilmById - {}", film);
-        return film;
+        return filmStorage.findFilmById(id);
     }
 
     public Film create(Film film) {
-        log.debug("Creating film {} ", film);
         return filmStorage.create(film);
     }
 

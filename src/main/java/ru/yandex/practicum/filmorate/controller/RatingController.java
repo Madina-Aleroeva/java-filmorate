@@ -19,13 +19,11 @@ public class RatingController {
 
     @GetMapping
     public List<Rating> findAllRatings() {
-        // TODO - filmService.findAllRatings()
         return ratingService.findAllRatings();
     }
 
     @GetMapping("/{id}")
     public Rating findRatingById(@PathVariable int id) {
-        // TODO - filmService.findRatingById(id)
         return ratingService.findRatingById(id);
     }
 }

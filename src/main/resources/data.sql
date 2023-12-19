@@ -6,7 +6,6 @@ truncate table USERS;
 truncate table FRIEND;*/
 
 
-
 insert into GENRE (name)
 values ('Комедия'),
        ('Драма'),

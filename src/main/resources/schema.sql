@@ -38,9 +38,9 @@ create table if not exists users
 
 create table if not exists friend
 (
-    id        int primary key auto_increment,
-    req_from  int references users (id) on delete cascade,
-    req_to    int references users (id) on delete cascade
+    id       int primary key auto_increment,
+    req_from int references users (id) on delete cascade,
+    req_to   int references users (id) on delete cascade
 );
 
 create table if not exists film_like
