@@ -3,11 +3,13 @@ package ru.yandex.practicum.filmorate.storage.film;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.model.Rating;
 
-import java.time.LocalDate;
 import java.util.*;
+
+import static ru.yandex.practicum.filmorate.validation.FilmValidation.checkCorrect;
 
 @Component
 @Slf4j
@@ -51,6 +53,26 @@ public class InMemoryFilmStorage implements FilmStorage {
         return film;
     }
 
+    @Override
+    public List<Genre> findAllGenres() {
+        return null;
+    }
+
+    @Override
+    public Genre findGenreById(int id) {
+        return null;
+    }
+
+    @Override
+    public List<Rating> findAllRatings() {
+        return null;
+    }
+
+    @Override
+    public Rating findRatingById(int id) {
+        return null;
+    }
+
     private void setNewFilmId(Film film) {
         int id = 0;
         if (!films.isEmpty()) {
@@ -60,26 +82,5 @@ public class InMemoryFilmStorage implements FilmStorage {
         film.setId(id + 1);
     }
 
-    private void checkCorrect(Film film) {
-        StringBuilder sb = new StringBuilder();
 
-        if (film.getName().isBlank()) {
-            sb.append("Name shouldn't be blank.");
-        }
-        if (film.getDescription().length() > 200) {
-            sb.append("Description should be less than 200 symbols.");
-        }
-        if (film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
-            sb.append("Release date should be from 28 december 1895.");
-        }
-        if (film.getDuration() <= 0) {
-            sb.append("Duration should be positive value.");
-        }
-
-        if (sb.length() > 0) {
-            log.debug(sb.toString());
-            throw new ValidationException(sb.toString());
-        }
-
-    }
 }
